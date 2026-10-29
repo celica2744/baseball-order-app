@@ -28,12 +28,21 @@ st.markdown("""
         box-shadow: 0px 4px 10px rgba(0,0,0,0.1);
     }
     .player-name-text {
-        font-size: 1.05rem;
+        font-size: 0.95rem;
         font-weight: 600;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        line-height: 2rem;
+        line-height: 2.2rem;
+    }
+    /* スマホでボタンやカラムが縦落ちするのを防ぐ微調整 */
+    [data-testid="column"] {
+        padding: 0px 2px !important;
+    }
+    .stButton button {
+        padding: 0.25rem 0.4rem;
+        font-size: 0.85rem;
+        min-height: 2rem;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -187,10 +196,8 @@ with st.sidebar:
 tab1, tab2 = st.tabs(["📱 オーダー作成", "📲 LINE送信"])
 
 with tab1:
-    # デフォルトは前回の直近データ（last_game.csv）をロード
     saved_players, saved_positions, saved_def_type, saved_bat_count = load_game_data(LAST_GAME_FILE)
 
-    # 📋 プラン管理セクション（プランA/B/Cの保存・読み込み）
     with st.expander("📂 作戦プラン管理（プランA〜C）", expanded=False):
         st.write("現在のオーダー状態をプランとして保存したり、保存したプランを呼び出せます。")
         plan_choice = st.selectbox("対象プラン", ["プランA", "プランB", "プランC"])
@@ -201,12 +208,10 @@ with tab1:
             if st.button(f"📥 {plan_choice}を読み込む"):
                 p_p, p_pos, p_def, p_bat = load_game_data(plan_filename)
                 if p_p:
-                    # セッション状態をプランの内容で上書き
                     st.session_state.game_players = p_p
                     st.session_state.lineup_positions = p_pos
                     st.session_state.swap_index = None
                     st.session_state.swap_pos_index = None
-                    # ルール設定も連動させて直近データとして即時保存
                     save_game_data(LAST_GAME_FILE, p_p, p_pos, p_def or "9人制（投手・捕手・内野4・外野3）", p_bat or 9)
                     st.success(f"{plan_choice} を読み込みました！")
                     st.rerun()
@@ -233,7 +238,6 @@ with tab1:
         default_bat_val = saved_bat_count if saved_bat_count is not None else 9
         batting_count = st.number_input("打撃人数", min_value=9, max_value=15, value=default_bat_val, step=1)
 
-    # 守備スタイルのポジション基準定義
     if "9人制" in defense_type:
         positions = ["投手", "捕手", "一塁手", "二塁手", "三塁手", "遊撃手", "左翼手", "中堅手", "右翼手", "DH"]
     elif "外野4" in defense_type:
@@ -280,7 +284,6 @@ with tab1:
                 st.session_state.lineup_positions = [positions[i % len(positions)] if i < len(positions) else "DH" for i in range(batting_count)]
             st.session_state.last_defense_type = defense_type
 
-        # 操作のたびに自動で直近データとして保存
         save_game_data(LAST_GAME_FILE, st.session_state.game_players, st.session_state.lineup_positions, defense_type, batting_count)
 
         if st.session_state.swap_index is not None or st.session_state.swap_pos_index is not None:
@@ -309,19 +312,20 @@ with tab1:
             is_p_sel = (st.session_state.swap_index == i)
             is_pos_sel = (st.session_state.swap_pos_index == i)
 
-            c_num, c_pos_box, c_p_box = st.columns([0.6, 2.2, 3.2])
+            # 横幅の比率を調整（打順:0.5, 守備:2.6, 選手:3.4）
+            c_num, c_pos_box, c_p_box = st.columns([0.5, 2.6, 3.4])
             
             with c_num:
-                st.markdown(f"**{i+1}**")
+                st.markdown(f"<div style='padding-top:6px; font-weight:bold;'>{i+1}</div>", unsafe_allow_html=True)
 
             with c_pos_box:
                 pos_style = "color:blue; font-weight:bold;" if is_pos_sel else "color:#333;"
                 btn_lbl = "📍" if is_pos_sel else "🔄"
                 btn_type = "primary" if is_pos_sel else "secondary"
                 
-                p_c1, p_c2 = st.columns([1.5, 1])
+                p_c1, p_c2 = st.columns([1.8, 1])
                 with p_c1:
-                    st.markdown(f"<span style='{pos_style} font-size:0.95rem;'>{curr_pos}</span>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='{pos_style} font-size:0.9rem; padding-top:6px; white-space:nowrap;'>{curr_pos}</div>", unsafe_allow_html=True)
                 with p_c2:
                     if st.button(btn_lbl, key=f"btn_pos_{i}", type=btn_type):
                         if st.session_state.swap_pos_index is None:
@@ -343,7 +347,7 @@ with tab1:
                 btn_lbl = "📍" if is_p_sel else "🔄"
                 btn_type = "primary" if is_p_sel else "secondary"
                 
-                plr_c1, plr_c2 = st.columns([2.2, 1])
+                plr_c1, plr_c2 = st.columns([2.4, 1])
                 with plr_c1:
                     st.markdown(f"<div class='player-name-text' style='{p_style}'>{p_name}</div>", unsafe_allow_html=True)
                 with plr_c2:
@@ -374,15 +378,15 @@ with tab1:
                 p_name = st.session_state.game_players[real_idx]
                 is_p_sel = (st.session_state.swap_index == real_idx)
                 
-                c_num, c_p_box = st.columns([0.6, 5.4])
+                c_num, c_p_box = st.columns([0.5, 6.0])
                 with c_num:
-                    st.write("・")
+                    st.markdown("<div style='padding-top:6px;'>・</div>", unsafe_allow_html=True)
                 with c_p_box:
                     p_style = "color:red; font-weight:bold;" if is_p_sel else "color:#111;"
                     btn_lbl = "📍" if is_p_sel else "🔄"
                     btn_type = "primary" if is_p_sel else "secondary"
                     
-                    plr_c1, plr_c2 = st.columns([3.8, 1])
+                    plr_c1, plr_c2 = st.columns([4.2, 1])
                     with plr_c1:
                         st.markdown(f"<div class='player-name-text' style='{p_style}'>{p_name}</div>", unsafe_allow_html=True)
                     with plr_c2:
